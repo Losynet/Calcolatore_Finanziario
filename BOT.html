@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calcolatore Finanziario</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #181c24;
+    --border: #252a35;
+    --gold: #c9a84c;
+    --gold-light: #e8c97a;
+    --gold-dim: #7a6230;
+    --text: #e8e4d9;
+    --text-dim: #7a7870;
+    --green: #3ecf8e;
+    --red: #ff6b6b;
+    --blue: #4d9fff;
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.4;
+  }
+
+  .app-header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .app-header .overline {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .app-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(32px, 5vw, 56px);
+    font-weight: 900;
+    color: var(--text);
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+
+  .app-header h1 span {
+    color: var(--gold);
+  }
+
+  .app-header .subtitle {
+    margin-top: 12px;
+    color: var(--text-dim);
+    font-size: 14px;
+    letter-spacing: 0.5px;
+  }
+
+  /* Selector tabs */
+  .type-selector {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+  }
+
+  .type-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 12px 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .type-btn:hover { border-color: var(--gold-dim); color: var(--text); }
+
+  .type-btn.active {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: #0a0c10;
+    font-weight: 500;
+  }
+
+  /* Main layout */
+  .calculator {
+    max-width: 960px;
+    margin: 0 auto;
+    display: grid;
+    gap: 20px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+  }
+
+  .card-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    color: var(--gold);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .card-title::before {
+    content: '';
+    display: block;
+    width: 3px;
+    height: 20px;
+    background: var(--gold);
+    border-radius: 2px;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .field label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .field input, .field select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+
+  .field input:focus, .field select:focus { border-color: var(--gold-dim); }
+
+  .field input::placeholder { color: var(--text-dim); }
+
+  .field select option { background: var(--surface2); }
+
+  .field .note {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* Computed display field */
+  .field .computed {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 14px 6px;
+    font-family: 'DM Mono', monospace;
+  }
+  .field .computed .c-value {
+    font-size: 14px;
+    color: var(--gold-light);
+    font-weight: 500;
+  }
+  .field .computed .c-formula {
+    font-size: 10px;
+    color: var(--gold-dim);
+    margin-top: 3px;
+    letter-spacing: 0.3px;
+    line-height: 1.4;
+    border-top: 1px solid var(--border);
+    padding-top: 4px;
+    margin-top: 5px;
+  }
+
+  .calc-btn {
+    margin-top: 24px;
+    background: var(--gold);
+    color: #0a0c10;
+    border: none;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-weight: 500;
+    padding: 14px 36px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+  }
+
+  .calc-btn:hover { background: var(--gold-light); transform: translateY(-1px); }
+  .calc-btn:active { transform: translateY(0); }
+
+  /* Results */
+  .results {
+    display: none;
+  }
+
+  .results.visible { display: block; }
+
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+  }
+
+  .result-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    transition: border-color 0.2s;
+  }
+
+  .result-item:hover { border-color: var(--gold-dim); }
+
+  .result-item .r-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .result-item .r-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .result-item .r-value.pos { color: var(--green); }
+  .result-item .r-value.neg { color: var(--red); }
+  .result-item .r-value.gold { color: var(--gold-light); }
+
+  .result-item .r-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  .result-item .r-formula {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--gold-dim);
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+    line-height: 1.5;
+    text-align: left;
+    word-break: break-word;
+  }
+
+  /* Highlight big result */
+  .result-hero {
+    background: linear-gradient(135deg, #1a1f2a, #111318);
+    border: 1px solid var(--gold-dim);
+    border-radius: var(--radius);
+    padding: 28px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .result-hero .hero-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 8px;
+  }
+
+  .result-hero .hero-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 48px;
+    font-weight: 900;
+    letter-spacing: -2px;
+  }
+
+  .result-hero .hero-value.pos { color: var(--green); }
+  .result-hero .hero-value.neg { color: var(--red); }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 20px 0;
+  }
+
+  /* Formula strip */
+  .formula-strip {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-top: 16px;
+    line-height: 1.8;
+  }
+
+  .formula-strip span { color: var(--gold-dim); }
+
+  .hidden { display: none !important; }
+
+  /* Badges for type */
+  .badge {
+    display: inline-block;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 3px;
+    margin-left: 8px;
+    background: var(--gold-dim);
+    color: var(--gold-light);
+  }
+
+  .badge.green { background: #1a3d2e; color: var(--green); }
+  .badge.red { background: #3d1a1a; color: var(--red); }
+
+  @media (max-width: 600px) {
+    body { padding: 24px 16px; }
+    .results-grid { grid-template-columns: 1fr 1fr; }
+    .result-hero .hero-value { font-size: 36px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="overline">Strumento di Analisi</div>
+  <h1>Calcolatore <span>Finanziario</span></h1>
+  <p class="subtitle">Azioni · BOT · BTP — Rendimento netto fiscalizzato</p>
+</header>
+
+<div class="type-selector">
+  <button class="type-btn active" onclick="setType('azioni')">📈 Azioni</button>
+  <button class="type-btn" onclick="setType('bot')">📄 BOT</button>
+  <button class="type-btn" onclick="setType('btp')">🏛️ BTP</button>
+</div>
+
+<div class="calculator" id="calculator">
+
+  <!-- AZIONI -->
+  <div class="card" id="section-azioni">
+    <div class="card-title">Dati di Acquisto e Vendita <span class="badge">Ritenuta 26%</span></div>
+    <div class="form-grid">
+      <div class="field">
+        <label>N° Azioni</label>
+        <input type="number" id="az-num" placeholder="es. 1000" oninput="az_updateDerived()">
+      </div>
+      <div class="field">
+        <label>Prezzo Unitario (€)</label>
+        <input type="number" id="az-price" placeholder="es. 5.00" step="0.01" oninput="az_updateDerived()">
+      </div>
+      <div class="field">
+        <label>VA — Valore di Acquisto (€)</label>
+        <div class="computed" id="az-va"><div class="c-value" id="az-va-val">—</div><div class="c-formula" id="az-va-formula"></div></div>
+      </div>
+      <div class="field">
+        <label>VV — Valore di Vendita (€)</label>
+        <input type="number" id="az-vv" placeholder="es. 5500" step="0.01" oninput="az_updateDerived()">
+      </div>
+      <div class="field">
+        <label>RL — Plusvalenza Lorda (VV−VA)</label>
+        <div class="computed" id="az-rl"><div class="c-value" id="az-rl-val">—</div><div class="c-formula" id="az-rl-formula"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="section-azioni-div">
+    <div class="card-title">Dividendi</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Dividendo per Azione (€)</label>
+        <input type="number" id="az-div-unit" placeholder="es. 0.25" step="0.001" oninput="az_updateDerived()">
+      </div>
+      <div class="field">
+        <label>Dividendi Totali Lordi (€)</label>
+        <div class="computed" id="az-div-tot"><div class="c-value" id="az-div-tot-val">—</div><div class="c-formula" id="az-div-tot-formula"></div></div>
+        <span class="note">div/azione × n° azioni</span>
+      </div>
+      <div class="field">
+        <label>Stacco Dividendo ogni (mesi)</label>
+        <input type="number" id="az-div-mesi" placeholder="es. 6" min="1" oninput="az_updateDerived()">
+        <span class="note">Inserisci tu i mesi (es. 3, 6, 12…)</span>
+      </div>
+      <div class="field">
+        <label>Periodo di Possesso (mesi)</label>
+        <input type="number" id="az-tempo-mesi" placeholder="es. 12" min="1" oninput="az_updateDerived()">
+        <span class="note">Durata totale investimento in mesi</span>
+      </div>
+      <div class="field">
+        <label>N° Stacchi nel Periodo</label>
+        <div class="computed" id="az-num-stacchi"><div class="c-value" id="az-num-stacchi-val">—</div><div class="c-formula" id="az-num-stacchi-formula"></div></div>
+      </div>
+      <div class="field">
+        <label>Dividendi Complessivi (€)</label>
+        <div class="computed" id="az-div-compl"><div class="c-value" id="az-div-compl-val">—</div><div class="c-formula" id="az-div-compl-formula"></div></div>
+        <span class="note">div totali × n° stacchi</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOT -->
+  <div class="card hidden" id="section-bot">
+    <div class="card-title">Dati BOT <span class="badge">Ritenuta 12,5%</span></div>
+    <div class="form-grid">
+      <div class="field">
+        <label>N° Obbligazioni</label>
+        <input type="number" id="bot-num" placeholder="es. 1000" oninput="bot_updateDerived()">
+      </div>
+      <div class="field">
+        <label>Tipologia BOT</label>
+        <select id="bot-tipo" onchange="bot_updateDerived()">
+          <option value="3">Trimestrali (3 mesi)</option>
+          <option value="6">Semestrali (6 mesi)</option>
+          <option value="12" selected>Annuali (12 mesi)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Prezzo di Acquisto Unitario (€)</label>
+        <input type="number" id="bot-price" placeholder="es. 90" step="0.01" oninput="bot_updateDerived()">
+      </div>
+      <div class="field">
+        <label>Valore Nominale Unitario (€)</label>
+        <input type="number" id="bot-vn" placeholder="es. 100" step="0.01" oninput="bot_updateDerived()">
+      </div>
+      <div class="field">
+        <label>VA — Valore Acquisto Totale (€)</label>
+        <div class="computed" id="bot-va"><div class="c-value" id="bot-va-val">—</div><div class="c-formula" id="bot-va-formula"></div></div>
+      </div>
+      <div class="field">
+        <label>VN — Valore Nominale Totale (€)</label>
+        <div class="computed" id="bot-vn-tot"><div class="c-value" id="bot-vn-tot-val">—</div><div class="c-formula" id="bot-vn-tot-formula"></div></div>
+      </div>
+      <div class="field">
+        <label>RL — Plusvalenza Lorda (VN−VA)</label>
+        <div class="computed" id="bot-rl"><div class="c-value" id="bot-rl-val">—</div><div class="c-formula" id="bot-rl-formula"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BTP -->
+  <div class="card hidden" id="section-btp">
+    <div class="card-title">Dati BTP <span class="badge">Ritenuta 12,5%</span></div>
+
+    <div class="form-grid" style="margin-bottom:16px">
+      <div class="field" style="grid-column:1/-1">
+        <label>Tipo di BTP (durata al rimborso)</label>
+        <select id="btp-scadenza" onchange="btp_onScadenzaChange()">
+          <option value="18">BTP a 18 mesi</option>
+          <option value="36">BTP a 3 anni</option>
+          <option value="60">BTP a 5 anni</option>
+          <option value="84">BTP a 7 anni</option>
+          <option value="120" selected>BTP a 10 anni</option>
+          <option value="180">BTP a 15 anni</option>
+          <option value="240">BTP a 20 anni</option>
+          <option value="360">BTP a 30 anni</option>
+          <option value="600">BTP a 50 anni</option>
+        </select>
+        <span class="note" id="btp-scadenza-note">Durata ufficiale dell'emissione. Determina il momento del rimborso (e della tassazione sulla plusvalenza VN−VA).</span>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:4px">
+      <div class="card-title" style="font-size:14px;margin-bottom:14px">Parametri</div>
+    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label>N° Obbligazioni</label>
+        <input type="number" id="btp-num" placeholder="es. 1000" oninput="btp_updateDerived()">
+      </div>
+      <div class="field">
+        <label>Frequenza Cedola</label>
+        <select id="btp-tipo" onchange="btp_updateDerived()">
+          <option value="3">Trimestrale (ogni 3 mesi)</option>
+          <option value="6" selected>Semestrale (ogni 6 mesi)</option>
+          <option value="12">Annuale (ogni 12 mesi)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Prezzo di Acquisto Unitario (€)</label>
+        <input type="number" id="btp-price" placeholder="es. 90" step="0.01" oninput="btp_updateDerived()">
+      </div>
+      <div class="field">
+        <label>Valore Nominale Unitario (€)</label>
+        <input type="number" id="btp-vn" placeholder="es. 100" step="0.01" oninput="btp_updateDerived()">
+      </div>
+      <div class="field">
+        <label>Tasso Cedola Annuo (%)</label>
+        <input type="number" id="btp-cedola" placeholder="es. 3.5" step="0.01" oninput="btp_updateDerived()">
+      </div>
+      <div class="field">
+        <label>Periodo di Possesso (mesi)</label>
+        <input type="number" id="btp-tempo" placeholder="es. 24" min="1" oninput="btp_updateDerived()">
+        <span class="note" id="btp-tempo-note"></span>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px">
+      <div class="card-title" style="font-size:14px;margin-bottom:14px">Valori Calcolati</div>
+    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label>VA — Valore Acquisto Totale (€)</label>
+        <div class="computed" id="btp-va"><div class="c-value" id="btp-va-val">—</div><div class="c-formula" id="btp-va-formula"></div></div>
+      </div>
+      <div class="field">
+        <label>VN — Valore Nominale Totale (€)</label>
+        <div class="computed" id="btp-vn-tot"><div class="c-value" id="btp-vn-tot-val">—</div><div class="c-formula" id="btp-vn-tot-formula"></div></div>
+      </div>
+      <div class="field">
+        <label>N° Cedole nel Periodo</label>
+        <div class="computed" id="btp-num-cedole"><div class="c-value" id="btp-num-cedole-val">—</div><div class="c-formula" id="btp-num-cedole-formula"></div></div>
+      </div>
+      <div class="field">
+        <label>Cedola Lorda Totale (€)</label>
+        <div class="computed" id="btp-cedola-tot"><div class="c-value" id="btp-cedola-tot-val">—</div><div class="c-formula" id="btp-cedola-tot-formula"></div></div>
+        <span class="note">Tassata subito al pagamento di ogni cedola</span>
+      </div>
+      <div class="field">
+        <label>Plus. Lorda VN−VA (€)</label>
+        <div class="computed" id="btp-plus"><div class="c-value" id="btp-plus-val">—</div><div class="c-formula" id="btp-plus-formula"></div></div>
+        <span class="note" id="btp-plus-note">Tassata solo al rimborso finale</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pulsante calcola -->
+  <button class="calc-btn" onclick="calcola()">▶ CALCOLA RENDIMENTO NETTO</button>
+
+  <!-- RISULTATI -->
+  <div class="card results" id="results-box">
+    <div class="card-title">Risultati <span class="badge green" id="res-badge">Azioni</span></div>
+
+    <div class="result-hero">
+      <div class="hero-label" id="res-hero-label">Rendimento Netto</div>
+      <div class="hero-value pos" id="res-hero-value">—</div>
+    </div>
+
+    <div class="results-grid" id="results-grid"></div>
+
+    <div class="formula-strip" id="formula-strip"></div>
+  </div>
+
+</div><!-- /calculator -->
+
+<script>
+  let currentType = 'azioni';
+
+  function setType(t) {
+    currentType = t;
+    document.querySelectorAll('.type-btn').forEach((b,i)=>{
+      b.classList.toggle('active', ['azioni','bot','btp'][i]===t);
+    });
+    ['section-azioni','section-azioni-div','section-bot','section-btp'].forEach(id=>{
+      document.getElementById(id).classList.add('hidden');
+    });
+    if(t==='azioni'){
+      document.getElementById('section-azioni').classList.remove('hidden');
+      document.getElementById('section-azioni-div').classList.remove('hidden');
+    } else if(t==='bot'){
+      document.getElementById('section-bot').classList.remove('hidden');
+    } else {
+      document.getElementById('section-btp').classList.remove('hidden');
+    }
+    document.getElementById('results-box').classList.remove('visible');
+  }
+
+  const fmt = (v, dec=2) => v===null||isNaN(v) ? '—' : v.toLocaleString('it-IT',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+  const fmtEur = (v) => v===null||isNaN(v) ? '—' : fmt(v)+'€';
+  const fmtPct = (v) => v===null||isNaN(v) ? '—' : fmt(v)+'%';
+
+  // ---- Helper: set computed box with formula ----
+  function setComputed(id, value, formula) {
+    const valEl = document.getElementById(id+'-val');
+    const fmEl  = document.getElementById(id+'-formula');
+    if(valEl) valEl.textContent = value;
+    if(fmEl)  fmEl.textContent  = formula || '';
+  }
+
+  // ---- AZIONI derived ----
+  function az_updateDerived(){
+    const n = parseFloat(document.getElementById('az-num').value)||0;
+    const p = parseFloat(document.getElementById('az-price').value)||0;
+    const vv = parseFloat(document.getElementById('az-vv').value)||0;
+    const dUnit = parseFloat(document.getElementById('az-div-unit').value)||0;
+    const dMesi = parseFloat(document.getElementById('az-div-mesi').value)||0;
+    const tMesi = parseFloat(document.getElementById('az-tempo-mesi').value)||0;
+
+    const va = n*p;
+    const rl = vv - va;
+    const divTot = dUnit*n;
+    const numStacchi = (dMesi>0&&tMesi>0) ? Math.floor(tMesi/dMesi) : 0;
+    const divCompl = divTot * numStacchi;
+
+    setComputed('az-va',
+      va>0 ? fmtEur(va) : '—',
+      n&&p ? `N × P = ${n} × ${fmt(p)} = ${fmt(va)}€` : '');
+    setComputed('az-rl',
+      vv>0 ? fmtEur(rl) : '—',
+      va&&vv ? `VV − VA = ${fmt(vv)} − ${fmt(va)} = ${fmt(rl)}€` : '');
+    setComputed('az-div-tot',
+      dUnit>0&&n>0 ? fmtEur(divTot) : '—',
+      dUnit&&n ? `Div/azione × N = ${fmt(dUnit)} × ${n} = ${fmt(divTot)}€` : '');
+    setComputed('az-num-stacchi',
+      numStacchi||'—',
+      dMesi&&tMesi ? `⌊${tMesi} mesi / ${dMesi} mesi⌋ = ${numStacchi} stacchi` : '');
+    setComputed('az-div-compl',
+      divCompl>0 ? fmtEur(divCompl) : '—',
+      divTot&&numStacchi ? `Div totali × N stacchi = ${fmt(divTot)} × ${numStacchi} = ${fmt(divCompl)}€` : '');
+  }
+
+  // ---- BOT derived ----
+  function bot_updateDerived(){
+    const n = parseFloat(document.getElementById('bot-num').value)||0;
+    const p = parseFloat(document.getElementById('bot-price').value)||0;
+    const vn = parseFloat(document.getElementById('bot-vn').value)||0;
+    const va = n*p;
+    const vnTot = n*vn;
+    const rl = vnTot - va;
+    setComputed('bot-va',
+      va>0 ? fmtEur(va) : '—',
+      n&&p ? `N × P = ${n} × ${fmt(p)} = ${fmt(va)}€` : '');
+    setComputed('bot-vn-tot',
+      vnTot>0 ? fmtEur(vnTot) : '—',
+      n&&vn ? `N × VN = ${n} × ${fmt(vn)} = ${fmt(vnTot)}€` : '');
+    setComputed('bot-rl',
+      fmtEur(rl),
+      va&&vnTot ? `VN tot − VA = ${fmt(vnTot)} − ${fmt(va)} = ${fmt(rl)}€` : '');
+  }
+
+  // ---- BTP scadenza change ----
+  function btp_onScadenzaChange(){
+    const sc = parseFloat(document.getElementById('btp-scadenza').value)||120;
+    const anni = sc/12;
+    const label = anni < 2 ? sc+' mesi' : anni+' anni';
+    const note = document.getElementById('btp-tempo-note');
+    if(note) note.textContent = 'BTP selezionato: scadenza a '+label+'. Inserisci quanti mesi intendi tenere il titolo (max '+sc+').';
+    btp_updateDerived();
+  }
+
+  // ---- BTP derived ----
+  function btp_updateDerived(){
+    const n = parseFloat(document.getElementById('btp-num').value)||0;
+    const p = parseFloat(document.getElementById('btp-price').value)||0;
+    const vn = parseFloat(document.getElementById('btp-vn').value)||0;
+    const cedolaPct = parseFloat(document.getElementById('btp-cedola').value)||0;
+    const tipo = parseFloat(document.getElementById('btp-tipo').value)||6;
+    const tMesi = parseFloat(document.getElementById('btp-tempo').value)||0;
+    const scadenza = parseFloat(document.getElementById('btp-scadenza').value)||120;
+
+    const va = n*p;
+    const vnTot = n*vn;
+    const plus = vnTot - va;
+    const numCedole = tMesi>0&&tipo>0 ? Math.floor(tMesi/tipo) : 0;
+    const cedolaPerPeriodo = vn * (cedolaPct/100) * (tipo/12);
+    const cedolaTotLorda = cedolaPerPeriodo * n * numCedole;
+
+    const alRimborso = tMesi >= scadenza;
+    const plusNote = document.getElementById('btp-plus-note');
+    if(plusNote) plusNote.textContent = alRimborso
+      ? '⚠️ Periodo = scadenza: la plusvalenza VN−VA viene tassata al rimborso.'
+      : 'ℹ️ La plusvalenza VN−VA viene tassata SOLO al rimborso finale (scadenza: '+(scadenza/12 < 2 ? scadenza+' mesi' : scadenza/12+' anni')+').';
+
+    setComputed('btp-va',
+      va>0 ? fmtEur(va) : '—',
+      n&&p ? `N × P = ${n} × ${fmt(p)} = ${fmt(va)}€` : '');
+    setComputed('btp-vn-tot',
+      vnTot>0 ? fmtEur(vnTot) : '—',
+      n&&vn ? `N × VN = ${n} × ${fmt(vn)} = ${fmt(vnTot)}€` : '');
+    setComputed('btp-num-cedole',
+      numCedole||'—',
+      tMesi&&tipo ? `⌊${tMesi} mesi / ${tipo} mesi⌋ = ${numCedole} cedole` : '');
+    setComputed('btp-cedola-tot',
+      cedolaTotLorda>0 ? fmtEur(cedolaTotLorda) : '—',
+      cedolaPerPeriodo&&n&&numCedole
+        ? `VN×(${fmt(cedolaPct)}%/100)×(${tipo}/12)×N×cedole = ${fmt(cedolaPerPeriodo)}×${n}×${numCedole} = ${fmt(cedolaTotLorda)}€`
+        : '');
+    setComputed('btp-plus',
+      fmtEur(plus),
+      va&&vnTot ? `VN tot − VA = ${fmt(vnTot)} − ${fmt(va)} = ${fmt(plus)}€` : '');
+  }
+
+  // ---- CALCOLA ----
+  function calcola(){
+    const box = document.getElementById('results-box');
+    const grid = document.getElementById('results-grid');
+    const badge = document.getElementById('res-badge');
+    const heroLabel = document.getElementById('res-hero-label');
+    const heroVal = document.getElementById('res-hero-value');
+    const formulaStrip = document.getElementById('formula-strip');
+
+    let items = [];
+    let heroText = '';
+    let heroClass = 'pos';
+    let formula = '';
+
+    if(currentType==='azioni'){
+      badge.textContent='Azioni'; badge.className='badge green';
+      const n = parseFloat(document.getElementById('az-num').value)||0;
+      const p = parseFloat(document.getElementById('az-price').value)||0;
+      const vv = parseFloat(document.getElementById('az-vv').value)||0;
+      const dUnit = parseFloat(document.getElementById('az-div-unit').value)||0;
+      const dMesi = parseFloat(document.getElementById('az-div-mesi').value)||0;
+      const tMesi = parseFloat(document.getElementById('az-tempo-mesi').value)||0;
+
+      const va = n*p;
+      const rl = vv - va;
+      const divTot = dUnit*n;
+      const numStacchi = (dMesi>0&&tMesi>0)?Math.floor(tMesi/dMesi):0;
+      const divCompl = divTot * numStacchi;
+      const rtl = (vv - va) + divCompl;
+      const rf = rtl * 0.26;
+      const rtn = rtl - rf;
+      const anni = tMesi/12;
+      const r = anni>0 ? (rtn/(va*anni))*100 : null;
+
+      heroText = fmtEur(rtn);
+      heroClass = rtn>=0?'pos':'neg';
+      heroLabel.textContent = 'RTN — Reddito Totale Netto';
+
+      items = [
+        {label:'VA — Valore Acquisto',val:fmtEur(va),cls:'',
+          fm:`N × P = ${n} × ${fmt(p)}€ = ${fmt(va)}€`},
+        {label:'VV — Valore Vendita',val:fmtEur(vv),cls:'',
+          fm:'Inserito manualmente'},
+        {label:'RL — Plusvalenza Lorda',val:fmtEur(rl),cls:rl>=0?'pos':'neg',
+          fm:`VV − VA = ${fmt(vv)}€ − ${fmt(va)}€ = ${fmt(rl)}€`},
+        {label:'Div. Unitario × N° Azioni',val:fmtEur(divTot),cls:'',
+          fm:`${fmt(dUnit)}€ × ${n} azioni = ${fmt(divTot)}€`},
+        {label:'N° Stacchi nel Periodo',val:numStacchi,cls:'',
+          fm:`⌊${tMesi} mesi / ${dMesi} mesi⌋ = ${numStacchi} stacchi`},
+        {label:'Dividendi Complessivi',val:fmtEur(divCompl),cls:'pos',
+          fm:`Div tot × N stacchi = ${fmt(divTot)}€ × ${numStacchi} = ${fmt(divCompl)}€`},
+        {label:'RTL — Reddito Totale Lordo',val:fmtEur(rtl),cls:'gold',
+          fm:`RL + Div = ${fmt(rl)}€ + ${fmt(divCompl)}€ = ${fmt(rtl)}€`},
+        {label:'RF — Ritenuta 26%',val:fmtEur(rf),cls:'neg',
+          fm:`RTL × 26% = ${fmt(rtl)}€ × 0,26 = ${fmt(rf)}€`},
+        {label:'RTN — Reddito Totale Netto',val:fmtEur(rtn),cls:rtn>=0?'pos':'neg',
+          fm:`RTL − RF = ${fmt(rtl)}€ − ${fmt(rf)}€ = ${fmt(rtn)}€`},
+        {label:'Rendimento r (%/anno)',val:r!==null?fmtPct(r):'—',cls:'gold',
+          fm:r!==null?`RTN / (VA × t) = ${fmt(rtn)} / (${fmt(va)} × ${fmt(anni,2)} anni) × 100 = ${fmtPct(r)}`:'—'},
+      ];
+
+      formula = `<span>VA</span> = N×P = ${n}×${p} = ${fmt(va)}€ | `;
+      formula += `<span>RL</span> = VV−VA = ${fmt(vv)}€−${fmt(va)}€ = ${fmt(rl)}€ | `;
+      formula += `<span>Div</span> = ${fmt(dUnit)}€×${n} = ${fmt(divTot)}€ × ${numStacchi} stacchi = ${fmt(divCompl)}€\n`;
+      formula += `<span>RTL</span> = RL + Dividendi = ${fmt(rl)}€ + ${fmt(divCompl)}€ = ${fmt(rtl)}€ | `;
+      formula += `<span>RF</span> = RTL×26% = ${fmt(rf)}€ | `;
+      formula += `<span>RTN</span> = RTL−RF = ${fmt(rtn)}€ | `;
+      formula += `<span>r</span> = RTN/(VA×t) = ${fmt(rtn)}/(${fmt(va)}×${fmt(anni,2)}anni) = ${r!==null?fmtPct(r):'—'}`;
+
+    } else if(currentType==='bot'){
+      badge.textContent='BOT'; badge.className='badge';
+      const n = parseFloat(document.getElementById('bot-num').value)||0;
+      const p = parseFloat(document.getElementById('bot-price').value)||0;
+      const vn = parseFloat(document.getElementById('bot-vn').value)||0;
+      const tipo = parseFloat(document.getElementById('bot-tipo').value)||12;
+
+      const va = n*p;
+      const vnTot = n*vn;
+      const rl = vnTot - va;
+      const rf = rl * 0.125;
+      const rn = rl - rf;
+      const anni = tipo/12;
+      const r = va>0&&anni>0 ? (rn/(va*anni))*100 : null;
+
+      heroText = fmtEur(rn);
+      heroClass = rn>=0?'pos':'neg';
+      heroLabel.textContent = 'RN — Reddito Netto';
+
+      items = [
+        {label:'VA — Valore Acquisto',val:fmtEur(va),cls:'',
+          fm:`N × P = ${n} × ${fmt(p)}€ = ${fmt(va)}€`},
+        {label:'VN — Valore Nominale Totale',val:fmtEur(vnTot),cls:'',
+          fm:`N × VN = ${n} × ${fmt(vn)}€ = ${fmt(vnTot)}€`},
+        {label:'RL — Plusvalenza Lorda',val:fmtEur(rl),cls:rl>=0?'pos':'neg',
+          fm:`VN tot − VA = ${fmt(vnTot)}€ − ${fmt(va)}€ = ${fmt(rl)}€`},
+        {label:'RF — Ritenuta 12,5%',val:fmtEur(rf),cls:'neg',
+          fm:`RL × 12,5% = ${fmt(rl)}€ × 0,125 = ${fmt(rf)}€`},
+        {label:'RN — Reddito Netto',val:fmtEur(rn),cls:rn>=0?'pos':'neg',
+          fm:`RL − RF = ${fmt(rl)}€ − ${fmt(rf)}€ = ${fmt(rn)}€`},
+        {label:'Rendimento r (%/anno)',val:r!==null?fmtPct(r):'—',cls:'gold',
+          fm:r!==null?`RN / (VA × t) = ${fmt(rn)} / (${fmt(va)} × ${fmt(anni,2)} anni) × 100 = ${fmtPct(r)}`:'—'},
+      ];
+
+      formula = `<span>VA</span> = ${n}×${p} = ${fmt(va)}€ | <span>VN</span> = ${n}×${fmt(vn)} = ${fmt(vnTot)}€\n`;
+      formula += `<span>RL</span> = VN−VA = ${fmt(vnTot)}−${fmt(va)} = ${fmt(rl)}€ | `;
+      formula += `<span>RF</span> = RL×12,5% = ${fmt(rf)}€ | <span>RN</span> = RL−RF = ${fmt(rn)}€\n`;
+      formula += `<span>r</span> = RN/(VA×t) = ${fmt(rn)}/(${fmt(va)}×${fmt(anni,2)}anni) = ${r!==null?fmtPct(r):'—'}`;
+
+    } else { // BTP
+      badge.textContent='BTP'; badge.className='badge';
+      const n = parseFloat(document.getElementById('btp-num').value)||0;
+      const p = parseFloat(document.getElementById('btp-price').value)||0;
+      const vn = parseFloat(document.getElementById('btp-vn').value)||0;
+      const cedolaPct = parseFloat(document.getElementById('btp-cedola').value)||0;
+      const tipo = parseFloat(document.getElementById('btp-tipo').value)||6;
+      const tMesi = parseFloat(document.getElementById('btp-tempo').value)||0;
+      const scadenza = parseFloat(document.getElementById('btp-scadenza').value)||120;
+      const scLabel = scadenza < 24 ? scadenza+' mesi' : (scadenza/12)+' anni';
+
+      const va = n*p;
+      const vnTot = n*vn;
+      const plusLorda = vnTot - va;
+      const numCedole = tMesi>0&&tipo>0 ? Math.floor(tMesi/tipo) : 0;
+      const cedolaPerPeriodo = vn * (cedolaPct/100) * (tipo/12);
+      const cedolaTotLorda = cedolaPerPeriodo * n * numCedole;
+      const anni = tMesi/12;
+
+      // --- Cedole: tassate periodicamente ad ogni stacco ---
+      const rfCedole = cedolaTotLorda * 0.125;
+      const cedolaNetta = cedolaTotLorda - rfCedole;
+
+      // --- Plusvalenza VN-VA: tassata SOLO al rimborso finale ---
+      const alRimborso = tMesi >= scadenza;
+      const rfPlus = (alRimborso && plusLorda > 0) ? plusLorda * 0.125 : 0;
+      const plusNetta = alRimborso ? (plusLorda - rfPlus) : plusLorda; // se non siamo a rimborso, la plusvalenza lorda rimane (non ancora tassata)
+
+      const rfTot = rfCedole + rfPlus;
+      // RN tiene conto di: cedola netta sempre + plusvalenza netta solo se al rimborso
+      const rn = cedolaNetta + (alRimborso ? plusNetta : 0);
+      const r = va>0&&anni>0 ? (rn/(va*anni))*100 : null;
+
+      heroText = fmtEur(rn);
+      heroClass = rn>=0?'pos':'neg';
+      heroLabel.textContent = alRimborso ? 'RN — Reddito Netto (cedole + rimborso)' : 'RN — Reddito Netto (solo cedole)';
+
+      const rimborsoTag = alRimborso
+        ? '<span style="color:var(--green);font-size:10px">✅ RIMBORSO INCLUSO</span>'
+        : '<span style="color:var(--gold);font-size:10px">⏳ Rimborso a scadenza ('+ scLabel +')</span>';
+
+      items = [
+        {label:'VA — Valore Acquisto Totale',val:fmtEur(va),cls:'',
+          fm:`N × P = ${n} × ${fmt(p)}€ = ${fmt(va)}€`},
+        {label:'VN — Valore Nominale Totale',val:fmtEur(vnTot),cls:'',
+          fm:`N × VN = ${n} × ${fmt(vn)}€ = ${fmt(vnTot)}€`},
+        {label:'── CEDOLE ──',val:'tassate periodicamente ad ogni stacco',cls:'',divider:true},
+        {label:'N° Cedole nel Periodo',val:numCedole,cls:'',
+          fm:`⌊${tMesi} mesi / ${tipo} mesi⌋ = ${numCedole} cedole`},
+        {label:'Cedola Lorda Totale',val:fmtEur(cedolaTotLorda),cls:'',
+          fm:`VN × (${fmt(cedolaPct)}%/100) × (${tipo}/12) × N × cedole
+= ${fmt(cedolaPerPeriodo)}€ × ${n} × ${numCedole} = ${fmt(cedolaTotLorda)}€`},
+        {label:'RF Cedole (12,5%)',val:fmtEur(rfCedole),cls:'neg',
+          fm:`CL × 12,5% = ${fmt(cedolaTotLorda)}€ × 0,125 = ${fmt(rfCedole)}€`},
+        {label:'Cedola Netta',val:fmtEur(cedolaNetta),cls:'pos',
+          fm:`CL − RF = ${fmt(cedolaTotLorda)}€ − ${fmt(rfCedole)}€ = ${fmt(cedolaNetta)}€`},
+        {label:'── PLUSVALENZA VN−VA ──',val:'tassata SOLO al rimborso finale',cls:'',divider:true},
+        {label:'Plus. Lorda (VN−VA)',val:fmtEur(plusLorda),cls:plusLorda>=0?'pos':'neg',
+          fm:`VN tot − VA = ${fmt(vnTot)}€ − ${fmt(va)}€ = ${fmt(plusLorda)}€`},
+        {label:'RF Plus. 12,5% '+( alRimborso ? '(applicata al rimborso)' : '(rinviata a scadenza)' ),val:fmtEur(rfPlus),cls:'neg',
+          fm:alRimborso?`Plus. Lorda × 12,5% = ${fmt(plusLorda)}€ × 0,125 = ${fmt(rfPlus)}€`:`Non ancora applicata — si calcola alla scadenza (${scLabel})`},
+        {label:'Plus. Netta'+(alRimborso?'':' (rinviata)'),val:fmtEur(alRimborso?plusNetta:plusLorda),cls:plusLorda>=0?'pos':'neg',
+          fm:alRimborso?`Plus. Lorda − RF = ${fmt(plusLorda)}€ − ${fmt(rfPlus)}€ = ${fmt(plusNetta)}€`:`= Plus. Lorda ${fmt(plusLorda)}€ (tassazione differita)`},
+        {label:'── RIEPILOGO ──',val:'',cls:'',divider:true},
+        {label:'RF Totale Applicata',val:fmtEur(rfTot),cls:'neg',
+          fm:`RF Cedole + RF Plus = ${fmt(rfCedole)}€ + ${fmt(rfPlus)}€ = ${fmt(rfTot)}€`},
+        {label:'RN — Reddito Netto',val:fmtEur(rn),cls:rn>=0?'pos':'neg',
+          fm:alRimborso?`Cedola Netta + Plus Netta = ${fmt(cedolaNetta)}€ + ${fmt(plusNetta)}€ = ${fmt(rn)}€`:`Solo Cedola Netta = ${fmt(cedolaNetta)}€ (Plus. al rimborso)`},
+        {label:'Rendimento r (%/anno)',val:r!==null?fmtPct(r):'—',cls:'gold',
+          fm:r!==null?`RN / (VA × t) = ${fmt(rn)} / (${fmt(va)} × ${fmt(anni,2)} anni) × 100 = ${fmtPct(r)}`:'—'},
+      ];
+
+      formula = `<b>BTP ${scLabel} | Frequenza cedola: ogni ${tipo} mesi</b>\n`;
+      formula += `<span>CEDOLE (tassazione periodica)</span>\n`;
+      formula += `Cedola/periodo/obbl = VN*(${cedolaPct}%/100)*(${tipo}/12) = ${fmt(cedolaPerPeriodo)}€ | x${n} x${numCedole} = ${fmt(cedolaTotLorda)}€ lorda\n`;
+      formula += `RF Cedole = ${fmt(cedolaTotLorda)}€ * 12,5% = ${fmt(rfCedole)}€ | Cedola Netta = ${fmt(cedolaNetta)}€\n`;
+      formula += `<span>PLUSVALENZA VN−VA (tassata SOLO al rimborso)</span>\n`;
+      formula += `Plus. Lorda = ${fmt(vnTot)}€ − ${fmt(va)}€ = ${fmt(plusLorda)}€`;
+      if(alRimborso){
+        formula += ` | RF Plus = ${fmt(rfPlus)}€ | Plus. Netta = ${fmt(plusNetta)}€\n`;
+      } else {
+        formula += ` (NON tassata: rimborso a scadenza ${scLabel}, non ancora raggiunta)\n`;
+      }
+      formula += `<span>RN</span> = Cedola Netta${alRimborso?' + Plus. Netta':''} = ${fmt(rn)}€ | `;
+      formula += `<span>r</span> = RN/(VA*anni) = ${fmt(rn)}/(${fmt(va)}*${fmt(anni,2)}) = ${r!==null?fmtPct(r):'—'}`;
+    }
+
+    // Render
+    heroVal.textContent = heroText;
+    heroVal.className = 'hero-value ' + heroClass;
+
+    grid.innerHTML = items.map(i=> i.divider
+      ? `<div style="grid-column:1/-1;border-top:1px solid var(--border);padding:8px 0 2px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--gold-dim);display:flex;gap:10px;align-items:center">
+           <span>${i.label}</span><span style="font-size:9px;color:var(--text-dim)">${i.val}</span>
+         </div>`
+      : `<div class="result-item">
+           <div class="r-label">${i.label}</div>
+           <div class="r-value ${i.cls}">${i.val}</div>
+           ${i.fm ? `<div class="r-formula">${i.fm}</div>` : ''}
+         </div>`).join('');
+
+    formulaStrip.innerHTML = formula;
+    box.classList.add('visible');
+    setTimeout(()=>box.scrollIntoView({behavior:'smooth',block:'start'}), 100);
+  }
+</script>
+</body>
+</html>
