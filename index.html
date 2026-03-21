@@ -403,8 +403,13 @@
         <div class="computed" id="az-va"><div class="c-value" id="az-va-val">—</div><div class="c-formula" id="az-va-formula"></div></div>
       </div>
       <div class="field">
-        <label>VV — Valore di Vendita (€)</label>
-        <input type="number" id="az-vv" placeholder="es. 5500" step="0.01" oninput="az_updateDerived()">
+        <label>Prezzo Unitario di Vendita (€)</label>
+        <input type="number" id="az-vv" placeholder="es. 6.00" step="0.01" oninput="az_updateDerived()">
+        <span class="note">Prezzo per singola azione alla vendita</span>
+      </div>
+      <div class="field">
+        <label>VV — Valore di Vendita Totale (€)</label>
+        <div class="computed" id="az-vv-tot"><div class="c-value" id="az-vv-tot-val">—</div><div class="c-formula" id="az-vv-tot-formula"></div></div>
       </div>
       <div class="field">
         <label>RL — Plusvalenza Lorda (VV−VA)</label>
@@ -629,32 +634,36 @@
   function az_updateDerived(){
     const n = parseFloat(document.getElementById('az-num').value)||0;
     const p = parseFloat(document.getElementById('az-price').value)||0;
-    const vv = parseFloat(document.getElementById('az-vv').value)||0;
+    const pvv = parseFloat(document.getElementById('az-vv').value)||0; // prezzo unitario vendita
     const dUnit = parseFloat(document.getElementById('az-div-unit').value)||0;
     const dMesi = parseFloat(document.getElementById('az-div-mesi').value)||0;
     const tMesi = parseFloat(document.getElementById('az-tempo-mesi').value)||0;
 
     const va = n*p;
-    const rl = vv - va;
+    const vvTot = n*pvv;  // valore vendita totale
+    const rl = vvTot - va;
     const divTot = dUnit*n;
     const numStacchi = (dMesi>0&&tMesi>0) ? Math.floor(tMesi/dMesi) : 0;
     const divCompl = divTot * numStacchi;
 
     setComputed('az-va',
       va>0 ? fmtEur(va) : '—',
-      n&&p ? `N × P = ${n} × ${fmt(p)} = ${fmt(va)}€` : '');
+      n&&p ? `N × P = ${n} × ${fmt(p)}€ = ${fmt(va)}€` : '');
+    setComputed('az-vv-tot',
+      vvTot>0 ? fmtEur(vvTot) : '—',
+      n&&pvv ? `N × P vendita = ${n} × ${fmt(pvv)}€ = ${fmt(vvTot)}€` : '');
     setComputed('az-rl',
-      vv>0 ? fmtEur(rl) : '—',
-      va&&vv ? `VV − VA = ${fmt(vv)} − ${fmt(va)} = ${fmt(rl)}€` : '');
+      pvv>0 ? fmtEur(rl) : '—',
+      va&&vvTot ? `VV tot − VA = ${fmt(vvTot)}€ − ${fmt(va)}€ = ${fmt(rl)}€` : '');
     setComputed('az-div-tot',
       dUnit>0&&n>0 ? fmtEur(divTot) : '—',
-      dUnit&&n ? `Div/azione × N = ${fmt(dUnit)} × ${n} = ${fmt(divTot)}€` : '');
+      dUnit&&n ? `Div/azione × N = ${fmt(dUnit)}€ × ${n} = ${fmt(divTot)}€` : '');
     setComputed('az-num-stacchi',
       numStacchi||'—',
       dMesi&&tMesi ? `⌊${tMesi} mesi / ${dMesi} mesi⌋ = ${numStacchi} stacchi` : '');
     setComputed('az-div-compl',
       divCompl>0 ? fmtEur(divCompl) : '—',
-      divTot&&numStacchi ? `Div totali × N stacchi = ${fmt(divTot)} × ${numStacchi} = ${fmt(divCompl)}€` : '');
+      divTot&&numStacchi ? `Div totali × N stacchi = ${fmt(divTot)}€ × ${numStacchi} = ${fmt(divCompl)}€` : '');
   }
 
   // ---- BOT derived ----
@@ -746,17 +755,18 @@
       badge.textContent='Azioni'; badge.className='badge green';
       const n = parseFloat(document.getElementById('az-num').value)||0;
       const p = parseFloat(document.getElementById('az-price').value)||0;
-      const vv = parseFloat(document.getElementById('az-vv').value)||0;
+      const pvv = parseFloat(document.getElementById('az-vv').value)||0; // prezzo unitario vendita
       const dUnit = parseFloat(document.getElementById('az-div-unit').value)||0;
       const dMesi = parseFloat(document.getElementById('az-div-mesi').value)||0;
       const tMesi = parseFloat(document.getElementById('az-tempo-mesi').value)||0;
 
       const va = n*p;
-      const rl = vv - va;
+      const vvTot = n*pvv;
+      const rl = vvTot - va;
       const divTot = dUnit*n;
       const numStacchi = (dMesi>0&&tMesi>0)?Math.floor(tMesi/dMesi):0;
       const divCompl = divTot * numStacchi;
-      const rtl = (vv - va) + divCompl;
+      const rtl = rl + divCompl;
       const rf = rtl * 0.26;
       const rtn = rtl - rf;
       const anni = tMesi/12;
@@ -769,10 +779,10 @@
       items = [
         {label:'VA — Valore Acquisto',val:fmtEur(va),cls:'',
           fm:`N × P = ${n} × ${fmt(p)}€ = ${fmt(va)}€`},
-        {label:'VV — Valore Vendita',val:fmtEur(vv),cls:'',
-          fm:'Inserito manualmente'},
+        {label:'VV — Valore Vendita Totale',val:fmtEur(vvTot),cls:'',
+          fm:`N × P vendita = ${n} × ${fmt(pvv)}€ = ${fmt(vvTot)}€`},
         {label:'RL — Plusvalenza Lorda',val:fmtEur(rl),cls:rl>=0?'pos':'neg',
-          fm:`VV − VA = ${fmt(vv)}€ − ${fmt(va)}€ = ${fmt(rl)}€`},
+          fm:`VV tot − VA = ${fmt(vvTot)}€ − ${fmt(va)}€ = ${fmt(rl)}€`},
         {label:'Div. Unitario × N° Azioni',val:fmtEur(divTot),cls:'',
           fm:`${fmt(dUnit)}€ × ${n} azioni = ${fmt(divTot)}€`},
         {label:'N° Stacchi nel Periodo',val:numStacchi,cls:'',
@@ -789,8 +799,8 @@
           fm:r!==null?`RTN / (VA × t) = ${fmt(rtn)} / (${fmt(va)} × ${fmt(anni,2)} anni) × 100 = ${fmtPct(r)}`:'—'},
       ];
 
-      formula = `<span>VA</span> = N×P = ${n}×${p} = ${fmt(va)}€ | `;
-      formula += `<span>RL</span> = VV−VA = ${fmt(vv)}€−${fmt(va)}€ = ${fmt(rl)}€ | `;
+      formula = `<span>VA</span> = N×P = ${n}×${fmt(p)}€ = ${fmt(va)}€ | `;
+      formula += `<span>RL</span> = VV tot−VA = ${fmt(vvTot)}€−${fmt(va)}€ = ${fmt(rl)}€ | `;
       formula += `<span>Div</span> = ${fmt(dUnit)}€×${n} = ${fmt(divTot)}€ × ${numStacchi} stacchi = ${fmt(divCompl)}€\n`;
       formula += `<span>RTL</span> = RL + Dividendi = ${fmt(rl)}€ + ${fmt(divCompl)}€ = ${fmt(rtl)}€ | `;
       formula += `<span>RF</span> = RTL×26% = ${fmt(rf)}€ | `;
